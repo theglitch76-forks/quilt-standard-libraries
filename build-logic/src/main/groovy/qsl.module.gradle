@@ -170,36 +170,39 @@ task checkModuleVersion {
 		}
 	}
 }
+afterEvaluate {
+	publishing {
+		publications {
+			def moduleName = extension.moduleName.get()
+			def library = extension.library.get()
+			boolean publish = true
 
-publishing {
-	publications {
-		def moduleName = extension.moduleName.get()
-		def library = extension.library.get()
-		boolean publish = true
+			try {
+				def xml = new URL("https://maven.quiltmc.org/repository/release/org/quiltmc/qsl/$library/$moduleName/$project.version/" +
+						"$moduleName-$project.version" + ".pom").text
+				def metadata = new groovy.xml.XmlSlurper().parseText(xml)
 
-		try {
-			def xml = new URL("https://maven.quiltmc.org/repository/release/org/quiltmc/qsl/$library/$moduleName/$project.version/" +
-					"$moduleName-$project.version" + ".pom").text
-			def metadata = new groovy.xml.XmlSlurper().parseText(xml)
-
-			if (metadata.properties.hash == Git.getLatestCommitHash(project)) {
-				publish = false
+				if (metadata.properties.hash == Git.getLatestCommitHash(project)) {
+					publish = false
+				}
+			} catch (FileNotFoundException ignored) {
+				// No existing version was published.
 			}
-		} catch (FileNotFoundException ignored) {
-			// No existing version was published.
-		}
 
-		if (publish) {
-			mavenJava(MavenPublication) {
-				from components.java
+			if (publish) {
+				mavenJava(MavenPublication) {
+					from components.java
 
-				pom.withXml {
-					asNode().appendNode("properties").appendNode("hash", Git.getLatestCommitHash(project))
+					pom.withXml {
+						asNode().appendNode("properties").appendNode("hash", Git.getLatestCommitHash(project))
+					}
 				}
 			}
-		}
 
+		}
 	}
 }
+
+
 
 publish.dependsOn checkModuleVersion
